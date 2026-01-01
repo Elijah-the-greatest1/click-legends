@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tap Hoops</title>
+<style>
+  body {
+    margin: 0;
+    background: #0b1c2d;
+    color: white;
+    font-family: Arial, sans-serif;
+    overflow: hidden;
+  }
+
+  #hud {
+    position: fixed;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 20px;
+    font-size: 18px;
+    z-index: 10;
+  }
+
+  canvas {
+    display: block;
+  }
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <div>Score: <span id="score">0</span></div>
+  <div>Coins: <span id="coins">0</span></div>
+  <div>Time: <span id="time">60</span></div>
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let score = 0;
+let coins = 0;
+let timeLeft = 60;
+let gravity = 0.6;
+let slowFall = false;
+
+const ball = {
+  x: 100,
+  y: canvas.height - 120,
+  r: 18,
+  vx: 3,
+  vy: 0
+};
+
+let hoops = [];
+let pickups = [];
+
+function spawnHoop() {
+  hoops.push({
+    x: canvas.width + Math.random() * 400,
+    y: canvas.height - 100,
+    points: Math.random() < 0.5 ? 2 : 3,
+    scored: false
+  });
+}
+
+function spawnPickup() {
+  pickups.push({
+    x: canvas.width + Math.random() * 600,
+    y: canvas.height - 200,
+    type: Math.random() < 0.5 ? "coin" : "slow"
+  });
+}
+
+setInterval(spawnHoop, 2000);
+setInterval(spawnPickup, 3500);
+
+function tap() {
+  ball.vy = -10;
+  ball.vx = 4;
+}
+
+window.addEventListener("mousedown", tap);
+window.addEventListener("touchstart", tap);
+
+function update() {
+  ball.vy += slowFall ? gravity * 0.3 : gravity;
+  ball.y += ball.vy;
+  ball.x += ball.vx;
+
+  if (ball.y > canvas.height - 100) {
+    ball.y = canvas.height - 100;
+    ball.vy = 0;
+  }
+
+  hoops.forEach(h => {
+    h.x -= 3;
+
+    if (!h.scored &&
+        ball.x > h.x &&
+        ball.x < h.x + 60 &&
+        ball.y > h.y - 20 &&
+        ball.y < h.y + 20) {
+      score += h.points;
+      h.scored = true;
+    }
+  });
+
+  pickups.forEach(p => {
+    p.x -= 3;
+
+    const dx = ball.x - p.x;
+    const dy = ball.y - p.y;
+    if (Math.sqrt(dx*dx + dy*dy) < 25) {
+      if (p.type === "coin") coins++;
+      if (p.type === "slow") {
+        slowFall = true;
+        setTimeout(() => slowFall = false, 4000);
+      }
+      p.collected = true;
+    }
+  });
+
+  hoops = hoops.filter(h => h.x > -100);
+  pickups = pickups.filter(p => !p.collected && p.x > -50);
+
+  document.getElementById("score").textContent = score;
+  document.getElementById("coins").textContent = coins;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // ground
+  ctx.fillStyle = "#133";
+  ctx.fillRect(0, canvas.height - 80, canvas.width, 80);
+
+  // ball
+  ctx.fillStyle = "orange";
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+  ctx.fill();
+
+  // hoops
+  hoops.forEach(h => {
+    ctx.strokeStyle = h.points === 3 ? "gold" : "white";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(h.x + 30, h.y, 25, 0, Math.PI);
+    ctx.stroke();
+
+    ctx.fillStyle = "white";
+    ctx.fillText(h.points + "pt", h.x + 12, h.y - 10);
+  });
+
+  // pickups
+  pickups.forEach(p => {
+    ctx.fillStyle = p.type === "coin" ? "yellow" : "cyan";
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+loop();
+
+const timer = setInterval(() => {
+  timeLeft--;
+  document.getElementById("time").textContent = timeLeft;
+  if (timeLeft <= 0) {
+    clearInterval(timer);
+    alert("Time's up! Score: " + score);
+    location.reload();
+  }
+}, 1000);
+</script>
+
+</body>
+</html>
